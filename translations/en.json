@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Link Navien Account",
+        "description": "Enter your Navien Cloud credentials to discover your NWP500 devices.",
+        "data": {
+          "username": "Email Address",
+          "password": "Password"
+        }
+      },
+      "select_devices": {
+        "title": "Select your Navien NWP500 Water Heaters",
+        "data": {
+          "devices": "Devices in your Navien account"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_found": "No Navien devices were found for this account.",
+      "already_configured": "This device is already configured in Home Assistant.",
+      "reauth_successful": "Re-authentication completed successfully."
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password. Please try again.",
+      "cannot_connect": "Failed to connect to Navien Cloud. Check your network and try again."
+    }
+  }
+}

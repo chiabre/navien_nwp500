@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Navien Login",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "select_device": {
+        "title": "Select Heater",
+        "data": {
+          "device_id": "Heater Instance"
+        }
+      }
+    }
+  }
+}
