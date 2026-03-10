@@ -12,7 +12,8 @@
       "select_devices": {
         "title": "Select your Navien NWP500 Water Heaters",
         "data": {
-          "devices": "Devices in your Navien account"
+          "devices": "Devices in your Navien account",
+          "scan_interval": "Update Interval (30-599 Seconds)"
         }
       }
     },
@@ -24,6 +25,15 @@
     "error": {
       "invalid_auth": "Invalid email or password. Please try again.",
       "cannot_connect": "Failed to connect to Navien Cloud. Check your network and try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Update Interval (30-599 Seconds)"
+        }
+      }
     }
   }
 }

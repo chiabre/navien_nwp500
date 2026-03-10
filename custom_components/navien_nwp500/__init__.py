@@ -16,16 +16,26 @@ from .coordinator import NavienCoordinator
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Navien NWP500."""
+    # 1. Initialize runtime_data IMMEDIATELY so sensors don't crash
+    entry.runtime_data = {
+        "coordinators": {},
+        "mqtt_clients": [],
+        "auth": None,
+    }
+
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     selected_macs = entry.data[CONF_DEVICES]
 
+    # Get the interval from the config flow (seconds)
+    period_seconds = entry.options.get("scan_interval", entry.data.get("scan_interval", 60))
+
     LOGGER.info("Initializing Navien NWP500 integration")
 
     auth = NavienAuthClient(username, password)
+    entry.runtime_data["auth"] = auth
     
     try:
-        # Library handles login during __aenter__
         await auth.__aenter__()
         api = NavienAPIClient(auth)
         all_devices = await api.list_devices()
@@ -37,9 +47,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             pass
         raise ConfigEntryNotReady from err
 
-    coordinators = {}
-    mqtt_clients = []
-
     for mac in selected_macs:
         device = next((d for d in all_devices if d.device_info.mac_address == mac), None)
         if not device:
@@ -48,49 +55,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         mqtt = NavienMqttClient(auth)
         
-        # Connection Logging
         mqtt.on("connection_interrupted", lambda err, m=mac: LOGGER.warning("Navien MQTT [%s] lost: %s", m, err))
         mqtt.on("connection_resumed", lambda rc, sp, m=mac: LOGGER.info("Navien MQTT [%s] restored", m))
         
         coordinator = NavienCoordinator(hass, api, auth, device)
 
-        # Callback closure
         def make_callback(coord):
             return lambda status: coord.update_from_mqtt(status)
 
         try:
             await mqtt.connect()
-            
             await mqtt.control.signal_app_connection(device)
-            
             await mqtt.subscribe_device_status(device, make_callback(coordinator))
             
-            from nwp500.mqtt_utils import PeriodicRequestType
+            import nwp500
             await mqtt.start_periodic_requests(
                 device, 
-                request_type=PeriodicRequestType.DEVICE_STATUS, 
-                period_seconds=60
+                request_type=nwp500.PeriodicRequestType.DEVICE_STATUS, 
+                period_seconds=period_seconds
             )
             
             await mqtt.control.request_device_status(device)
-            
             await coordinator.async_config_entry_first_refresh()
             
         except Exception as err:
             LOGGER.error("MQTT Error for %s: %s", mac, err)
             continue
 
-        coordinators[mac] = coordinator
-        mqtt_clients.append(mqtt)
+        # 2. Add to the existing dictionary
+        entry.runtime_data["coordinators"][mac] = coordinator
+        entry.runtime_data["mqtt_clients"].append(mqtt)
 
-    entry.runtime_data = {
-        "coordinators": coordinators,
-        "mqtt_clients": mqtt_clients,
-        "auth": auth,
-    }
+    # Use the supported listener for 2026.3
+    entry.async_on_unload(entry.add_update_listener(async_update_options))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update options."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Shutdown Navien integration."""
@@ -103,7 +107,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except Exception:
                 pass
         try:
-            await data["auth"].__aexit__(None, None, None)
+            if data["auth"]:
+                await data["auth"].__aexit__(None, None, None)
         except Exception:
             pass
     return unload_ok
