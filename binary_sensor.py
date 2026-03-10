@@ -101,16 +101,16 @@ class NavienBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        status = self.coordinator.data.get("status")
-        if not status:
-            return None
+        status = self.coordinator.data.get("status", {})
         return bool(status.get(self.entity_description.key, False))
 
     @property
     def available(self):
         """Return if entity is available."""
-        status = self.coordinator.data.get("status")
-        return bool(status) and self.entity_description.key in status
+        if not self.coordinator.data:
+            return False
+        status = self.coordinator.data.get("status", {})
+        return self.entity_description.key in status
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""

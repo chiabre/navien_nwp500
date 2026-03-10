@@ -173,16 +173,20 @@ class NavienSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        status = self.coordinator.data.get("status")
-        if not status:
-            return None
+        status = self.coordinator.data.get("status", {})
         return status.get(self.entity_description.key)
 
     @property
     def available(self):
         """Return if entity is available."""
-        status = self.coordinator.data.get("status")
-        return bool(status) and self.entity_description.key in status
+        # Check if the coordinator has any data at all
+        if not self.coordinator.data:
+            return False
+            
+        status = self.coordinator.data.get("status", {})
+        # As long as the key exists in our data, we are available.
+        # This prevents the "Unavailable" flicker during updates.
+        return self.entity_description.key in status
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""

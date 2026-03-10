@@ -60,16 +60,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         try:
             await mqtt.connect()
+            
+            await mqtt.control.signal_app_connection(device)
+            
             await mqtt.subscribe_device_status(device, make_callback(coordinator))
             
-            # Start 60s periodic requests (The 10-minute fix)
-            await mqtt.start_periodic_requests(device, period_seconds=60)
+            from nwp500.mqtt_utils import PeriodicRequestType
+            await mqtt.start_periodic_requests(
+                device, 
+                request_type=PeriodicRequestType.DEVICE_STATUS, 
+                period_seconds=60
+            )
             
-            # Request initial status
             await mqtt.control.request_device_status(device)
             
-            # Wait for first packet so sensors aren't 'Unknown' on boot
             await coordinator.async_config_entry_first_refresh()
+            
         except Exception as err:
             LOGGER.error("MQTT Error for %s: %s", mac, err)
             continue
