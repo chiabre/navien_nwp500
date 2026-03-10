@@ -16,51 +16,63 @@ class NavienBinarySensorEntityDescription(BinarySensorEntityDescription):
 
 
 BINARY_SENSOR_TYPES: tuple[NavienBinarySensorEntityDescription, ...] = (
-    # --- ENABLED BY DEFAULT ---
     NavienBinarySensorEntityDescription(
         key="operation_busy",
-        name="System Status",
+        name="Heating Status",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_registry_enabled_default=True,
     ),
     NavienBinarySensorEntityDescription(
         key="dhw_use",
-        name="Hot Water Draw",
+        name="Water Flow",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_registry_enabled_default=True,
     ),
-
-    # --- DISABLED BY DEFAULT (DIAGNOSTICS) ---
+    NavienBinarySensorEntityDescription(
+        key="dhw_use_sustained",
+        name="Sustained Water Flow",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_registry_enabled_default=False,
+    ),
     NavienBinarySensorEntityDescription(
         key="comp_use",
-        name="Compressor Active",
+        name="Compressor",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
     NavienBinarySensorEntityDescription(
-        key="eva_fan_use",
-        name="Evaporator Fan",
-        device_class=BinarySensorDeviceClass.RUNNING,
+        key="heat_upper_use",
+        name="Upper Electric Element",
+        device_class=None,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
     NavienBinarySensorEntityDescription(
-        key="recirc_operation_busy",
-        name="Recirc Pump",
-        device_class=BinarySensorDeviceClass.RUNNING,
+        key="heat_lower_use",
+        name="Lower Electric Element",
+        device_class=None,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
+    ),
+    NavienBinarySensorEntityDescription(
+        key="freeze_protection_use",
+        name="Freeze Protection",
+        device_class=None,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=True,
     ),
     NavienBinarySensorEntityDescription(
         key="anti_legionella_use",
-        name="Anti-Legionella Active",
+        name="Anti-Legionella Enabled",
+        device_class=None,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
     NavienBinarySensorEntityDescription(
-        key="eco_use",
-        name="Eco Mode Active",
+        key="anti_legionella_operation_busy",
+        name="Anti-Legionella Cycle",
+        device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
@@ -69,7 +81,7 @@ BINARY_SENSOR_TYPES: tuple[NavienBinarySensorEntityDescription, ...] = (
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up Navien binary sensors."""
-    coordinators = entry.runtime_data.get("coordinators") or {}
+    coordinators = entry.runtime_data["coordinators"]
 
     entities = [
         NavienBinarySensor(coord, description)
@@ -88,9 +100,7 @@ class NavienBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, description):
         super().__init__(coordinator)
         self.entity_description = description
-
         self._attr_unique_id = f"{coordinator.mac_address}_{description.key}"
-
         self._attr_device_info = {
             "identifiers": {(DOMAIN, coordinator.mac_address)},
             "name": coordinator.device_name,
@@ -114,9 +124,4 @@ class NavienBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        LOGGER.debug(
-                    "Navien Binary Sensor [%s] update received: %s", 
-                    self.entity_id, 
-                    self.is_on
-                )
         self.hass.add_job(self.async_write_ha_state)
