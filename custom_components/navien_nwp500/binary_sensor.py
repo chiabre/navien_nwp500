@@ -60,7 +60,7 @@ BINARY_SENSOR_TYPES: tuple[NavienBinarySensorEntityDescription, ...] = (
         name="Freeze Protection",
         device_class=None,
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=True,
+        entity_registry_enabled_default=False,
     ),
     NavienBinarySensorEntityDescription(
         key="anti_legionella_use",
